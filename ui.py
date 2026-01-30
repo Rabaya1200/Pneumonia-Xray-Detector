@@ -1,37 +1,46 @@
 import streamlit as st
-import tensorflow as tf
+import torch
+import torchvision.transforms as transforms
 from PIL import Image
-import numpy as np
 
-st.title("Pneumonia X-ray Detector")
+st.title("Pneumonia X-ray Detector (PyTorch)")
 
-# 1. Load the AI brain directly from your GitHub folder
+# 1. Load the PyTorch Brain
 @st.cache_resource
-def load_my_model():
-    # Make sure you have a file named 'model.h5' in your GitHub!
-    return tf.keras.models.load_model('model.h5')
+def load_model():
+    # Make sure your file is named 'model.pth' or 'model.pt'
+    model = torch.load('model.pth', map_location=torch.device('cpu'))
+    model.eval()
+    return model
 
 try:
-    model = load_my_model()
-    st.success("AI Model Loaded Successfully!")
+    model = load_model()
+    st.success("PyTorch Model Loaded!")
 except Exception as e:
-    st.error("Missing 'model.h5' file in GitHub. Please upload it!")
+    st.error("Could not find 'model.pth' in GitHub.")
 
-# 2. Upload Image
-uploaded_file = st.file_uploader("Upload an X-ray...", type=["jpg", "png", "jpeg"])
+# 2. Upload and Predict
+uploaded_file = st.file_uploader("Upload X-ray", type=["jpg", "png"])
 
-if uploaded_file is not None:
+if uploaded_file:
     image = Image.open(uploaded_file).convert('RGB')
-    st.image(image, caption='Uploaded X-ray.', use_container_width=True)
+    st.image(image, use_container_width=True)
     
-    if st.button('Run Detection'):
-        # 3. Predict immediately without calling another server
-        img = image.resize((224, 224)) 
-        img_array = np.array(img) / 255.0
-        img_array = np.expand_dims(img_array, axis=0)
-        
-        prediction = model.predict(img_array)
-        if prediction[0][0] > 0.5:
-            st.error("Result: Pneumonia Detected")
-        else:
-            st.success("Result: Normal / No Pneumonia")
+    # 3. Process image for PyTorch
+    preprocess = transforms.Compose([
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
+        transforms.ToTensor(),
+    ])
+    input_tensor = preprocess(image).unsqueeze(0)
+
+    if st.button("Check for Pneumonia"):
+        with torch.no_grad():
+            output = model(input_tensor)
+            # This part depends on how your model outputs data
+            prediction = torch.sigmoid(output).item() 
+            
+            if prediction > 0.5:
+                st.error(f"Pneumonia Detected ({prediction:.2%})")
+            else:
+                st.success(f"Normal ({1-prediction:.2%})")
