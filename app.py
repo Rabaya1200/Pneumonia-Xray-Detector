@@ -19,17 +19,3 @@ preprocess = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
-
-
-@app.post("/predict")
-async def predict(file: UploadFile = File(...)):
-    img_bytes = await file.read()
-    image = Image.open(io.BytesIO(img_bytes)).convert('RGB')
-    tensor = preprocess(image).unsqueeze(0)
-
-    with torch.no_grad():
-        output = model(tensor)
-        prediction = torch.argmax(output, dim=1).item()
-
-    label = "Pneumonia" if prediction == 1 else "Normal"
-    return {"prediction": label}
