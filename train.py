@@ -48,3 +48,4 @@ if not os.path.exists('models'):
     os.makedirs('models')
 torch.save(model.state_dict(), "models/pneumonia_model.pth")
 print("Success! Trained model saved as models/pneumonia_model.pth")
+
